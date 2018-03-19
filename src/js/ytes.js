@@ -36,14 +36,22 @@ let YTES = {
   },
 
   state: {
+    route: '',
     isProcessing: false
   },
 
   ytApi: 'https://www.googleapis.com/youtube/v3/videos',
 
   selectors: {
-    received: '.received',
-    initial: '#contents ytd-video-renderer:not(.received)'
+    home: {
+      initial: '#contents ytd-grid-video-renderer:not(.received)'
+    },
+    results: {
+      initial: '#contents ytd-video-renderer:not(.received)'
+    },
+    video: {
+      initial: '#items ytd-compact-video-renderer:not(.received)'
+    }
   },
 
   language: {
@@ -52,6 +60,13 @@ let YTES = {
 
   init: function () {
     let self = this;
+    let route = this.getRoute();
+
+    if (!route) {
+      return;
+    }
+    this.state.route = route;
+
     this.prepareVideoIds();
     this.scrollActions();
   },
@@ -76,6 +91,15 @@ let YTES = {
     let elements = parent.querySelectorAll(selector);
     let result = elements.length === 1 ? elements[0] : elements;
     return result;
+  },
+
+  getRoute: function () {
+    switch (location.pathname) {
+      case '/': return 'home';
+      case '/results': return 'results';
+      case '/watch': return 'video';
+      default: return false;
+    }
   },
 
   append: function (markup, root=false) {
@@ -193,7 +217,7 @@ let YTES = {
   prepareVideoIds: function () {
     let videoIds = [];
     this.state.isProcessing = true;
-    let containers = this.get(this.selectors.initial);
+    let containers = this.get(this.selectors[this.state.route].initial);
 
     for (let c = 0; c < containers.length; c++) {
       let _this = containers[c];
