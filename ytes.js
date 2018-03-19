@@ -3,6 +3,7 @@
  * Author: Ryan Lanese
  * Url: https://github.com/ryanml/YouTubeEnhancementSuite/
  */
+
 let YTES = {
 
   /**
@@ -32,14 +33,11 @@ let YTES = {
 
   cache: {},
 
-  hasBuilt: false,
-
   ytApi: 'https://www.googleapis.com/youtube/v3/videos',
 
   selectors: {
-    metadata: '#metadata',
-    adorned: '.ytes-adorned',
-    initial: '#contents ytd-video-renderer:not(.ytes-adorned)'
+    received: '.received',
+    initial: '#contents ytd-video-renderer:not(.received)'
   },
 
   language: {
@@ -47,9 +45,11 @@ let YTES = {
   },
 
   init: function () {
-    let videoIds = this.prepareVideoIds();
-    this.fetchVideoInfo(videoIds);
-    this.hasBuilt = true;
+    let self = this;
+    this.prepareVideoIds();
+    window.addEventListener('scroll', function (e) {
+      self.prepareVideoIds();
+    });
   },
 
   get: function (selector, root=false) {
@@ -63,6 +63,10 @@ let YTES = {
     element.className += ` ${_class}`;
   },
 
+  replaceClass: function (element, oldClass, newClass) {
+    element.className = element.className.replace(oldClass, newClass)
+  },
+
   cacheVideoResults: function (videoSet) {
     let nodeArray = Array.from(videoSet);
     this.cache.videoResults = nodeArray;
@@ -71,14 +75,9 @@ let YTES = {
   pryVideoId: function (videoBlock) {
     let videoTitle = this.get('#video-title', videoBlock);
     let videoHref = videoTitle.getAttribute('href');
-    return videoHref.split('?v=')[1];
-  },
-
-  addInfo: function (preview, info) {
-    let infoBlock = document.createElement('div');
-    infoBlock.className = 'style-scope';
-    infoBlock.innerHTML = `${this.language.placeholder} || ${info.id}`;
-    preview.appendChild(infoBlock);
+    let idPart = videoHref.split('?v=')[1];
+    idPart = idPart.indexOf('&t=') > -1 ? idPart.split('&t=')[0] : idPart;
+    return idPart;
   },
 
   formatParams: function (payload) {
@@ -90,7 +89,38 @@ let YTES = {
     return paramBuff;
   },
 
+  addVideoInfo: function (stats, item) {
+    let metadata = this.get('#metadata', item);
+    for (var stat in stats) {
+      if (stats.hasOwnProperty(stat)) {
+        metadata.innerHTML += `${stat}: ${stats[stat]} `;
+      }
+    }
+    this.replaceClass(item, 'should-receive', 'received');
+  },
+
+  resolveVideoInfo: function (videoInfo) {
+    let toReceive = this.get('.should-receive');
+    for (let v = 0; v < toReceive.length; v++) {
+      let _this = toReceive[v];
+      let videoId = _this.dataset.videoid;
+      let infoItem = videoInfo.filter(i => i.id === videoId)[0];
+
+      if (typeof infoItem === 'undefined')
+        continue;
+
+      let stats = {
+        likes: infoItem.statistics.likeCount,
+        dislikes: infoItem.statistics.dislikeCount,
+        comments: infoItem.statistics.commentCount || 'disabled'
+      }
+
+      this.addVideoInfo(stats, _this);
+    }
+  },
+
   fetchVideoInfo: function (videoIds) {
+    let self = this;
     let xmlHr = new XMLHttpRequest();
     let params = this.formatParams({
       'key': this.apiKey,
@@ -103,7 +133,8 @@ let YTES = {
     xmlHr.onload = function (event) {
       if (xmlHr.readyState === 4) {
         if (xmlHr.status === 200) {
-          console.log(`Success: ${xmlHr.responseText}`);
+          let response = JSON.parse(xmlHr.responseText);
+          self.resolveVideoInfo(response.items);
         } else if (xmlHr.status === 403) {
           if (this.debug) {
             console.log(
@@ -135,19 +166,18 @@ let YTES = {
 
   prepareVideoIds: function () {
     let videoIds = [];
-    let containers = this.hasBuilt ?
-    this.get(this.selectors.adorned) :
-    this.get(this.selectors.initial);
+    let containers = this.get(this.selectors.initial);
 
     for (let c = 0; c < containers.length; c++) {
       let _this = containers[c];
       let videoId = this.pryVideoId(_this);
 
       videoIds.push(videoId);
-      this.addClass(_this, videoId);
+      _this.dataset.videoid = videoId;
+      this.addClass(_this, 'should-receive');
     }
 
-    return videoIds;
+    this.fetchVideoInfo(videoIds);
   }
 };
 
