@@ -7,9 +7,9 @@
   "content_scripts": [
     {
       "matches": [
-        "https://www.youtube.com/results*"
+        "*://*.youtube.com/*"
       ],
-      "js": ["ytes.js"]
+      "js": ["src/js/ytes.js"]
     }
   ],
   "permissions": [
