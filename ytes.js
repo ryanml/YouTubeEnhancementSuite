@@ -31,7 +31,13 @@ let YTES = {
    * Doing so may result in unintended behavior.
    */
 
-  cache: {},
+  cache: {
+    lastScrollTop: 0
+  },
+
+  state: {
+    isProcessing: false
+  },
 
   ytApi: 'https://www.googleapis.com/youtube/v3/videos',
 
@@ -47,8 +53,21 @@ let YTES = {
   init: function () {
     let self = this;
     this.prepareVideoIds();
+    this.scrollActions();
+  },
+
+  scrollActions: function () {
+    let self = this;
     window.addEventListener('scroll', function (e) {
-      self.prepareVideoIds();
+      let scrollPos = window.pageYOffset || document.documentElement.scrollTop;
+      /**
+       * There isn't a case (so far) where scroll up reveals new videos.
+       * We should only be checking for new videos when scrolling down the page
+       */
+      if (scrollPos > self.cache.lastScrollTop && !self.state.isProcessing) {
+        self.prepareVideoIds();
+      }
+      self.cache.lastScrollTop = scrollPos;
     });
   },
 
@@ -59,12 +78,17 @@ let YTES = {
     return result;
   },
 
+  append: function (markup, root=false) {
+    let parent = root || document.body;
+    parent.innerHTML += markup;
+  },
+
   addClass: function (element, _class) {
     element.className += ` ${_class}`;
   },
 
   replaceClass: function (element, oldClass, newClass) {
-    element.className = element.className.replace(oldClass, newClass)
+    element.className = element.className.replace(oldClass, newClass);
   },
 
   cacheVideoResults: function (videoSet) {
@@ -93,7 +117,7 @@ let YTES = {
     let metadata = this.get('#metadata', item);
     for (var stat in stats) {
       if (stats.hasOwnProperty(stat)) {
-        metadata.innerHTML += `${stat}: ${stats[stat]} `;
+        this.append(`${stat}: ${stats[stat]} `, metadata);
       }
     }
     this.replaceClass(item, 'should-receive', 'received');
@@ -113,7 +137,7 @@ let YTES = {
         likes: infoItem.statistics.likeCount,
         dislikes: infoItem.statistics.dislikeCount,
         comments: infoItem.statistics.commentCount || 'disabled'
-      }
+      };
 
       this.addVideoInfo(stats, _this);
     }
@@ -150,6 +174,7 @@ let YTES = {
           }
         }
       }
+      self.state.isProcessing = false;
     };
 
     xmlHr.onerror = function (err) {
@@ -159,6 +184,7 @@ let YTES = {
           Details: ${xmlHr.statusText}`
         );
       }
+      self.state.isProcessing = false;
     };
 
     xmlHr.send(null);
@@ -166,6 +192,7 @@ let YTES = {
 
   prepareVideoIds: function () {
     let videoIds = [];
+    this.state.isProcessing = true;
     let containers = this.get(this.selectors.initial);
 
     for (let c = 0; c < containers.length; c++) {
