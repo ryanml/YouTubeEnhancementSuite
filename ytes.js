@@ -1,3 +1,8 @@
+/**
+ * YouTube Enhancement Suite
+ * Author: Ryan Lanese
+ * Url: https://github.com/ryanml/YouTubeEnhancementSuite/
+ */
 let YTES = {
 
   /**
@@ -29,6 +34,8 @@ let YTES = {
 
   hasBuilt: false,
 
+  ytApi: 'https://www.googleapis.com/youtube/v3/videos',
+
   selectors: {
     metadata: '#metadata',
     adorned: '.ytes-adorned',
@@ -40,19 +47,16 @@ let YTES = {
   },
 
   init: function () {
-    this.addInfoBars();
+    let videoIds = this.prepareVideoIds();
+    this.fetchVideoInfo(videoIds);
     this.hasBuilt = true;
   },
 
-  getElements: function (selector, root=false) {
+  get: function (selector, root=false) {
     let parent = root || document;
-    let results = parent.querySelectorAll(selector);
-
-    if (results.length === 1) {
-      return results[0];
-    } else {
-      return results
-    }
+    let elements = parent.querySelectorAll(selector);
+    let result = elements.length === 1 ? elements[0] : elements;
+    return result;
   },
 
   addClass: function (element, _class) {
@@ -64,26 +68,86 @@ let YTES = {
     this.cache.videoResults = nodeArray;
   },
 
+  pryVideoId: function (videoBlock) {
+    let videoTitle = this.get('#video-title', videoBlock);
+    let videoHref = videoTitle.getAttribute('href');
+    return videoHref.split('?v=')[1];
+  },
+
   addInfo: function (preview, info) {
     let infoBlock = document.createElement('div');
     infoBlock.className = 'style-scope';
-    infoBlock.innerHTML = `${this.language.placeholder} || ${info.test}`;
+    infoBlock.innerHTML = `${this.language.placeholder} || ${info.id}`;
     preview.appendChild(infoBlock);
   },
 
-  addInfoBars: function () {
+  formatParams: function (payload) {
+    let paramBuff = '';
+    Object.keys(payload).map((key, inc) => {
+      let symbol = inc > 0 ? '&' : '?';
+      paramBuff += `${symbol}${key}=${payload[key]}`;
+    });
+    return paramBuff;
+  },
+
+  fetchVideoInfo: function (videoIds) {
+    let xmlHr = new XMLHttpRequest();
+    let params = this.formatParams({
+      'key': this.apiKey,
+      'part': 'statistics',
+      'id': videoIds.join(',')
+    });
+
+    xmlHr.open('GET', `${this.ytApi}${params}`, true);
+
+    xmlHr.onload = function (event) {
+      if (xmlHr.readyState === 4) {
+        if (xmlHr.status === 200) {
+          console.log(`Success: ${xmlHr.responseText}`);
+        } else if (xmlHr.status === 403) {
+          if (this.debug) {
+            console.log(
+              `The YT API was reached successfully, but returned a 403.
+              Ensure that your API key is correct.`
+            );
+          }
+        } else {
+          if (this.debug) {
+            console.log(
+              `YT API response error, status code: ${xmlHr.status}`
+            );
+          }
+        }
+      }
+    };
+
+    xmlHr.onerror = function (err) {
+      if (this.debug) {
+        console.log(
+          `Error making API call with payload: ${payload}
+          Details: ${xmlHr.statusText}`
+        );
+      }
+    };
+
+    xmlHr.send(null);
+  },
+
+  prepareVideoIds: function () {
+    let videoIds = [];
     let containers = this.hasBuilt ?
-    this.getElements(this.selectors.adorned) :
-    this.getElements(this.selectors.initial);
+    this.get(this.selectors.adorned) :
+    this.get(this.selectors.initial);
 
     for (let c = 0; c < containers.length; c++) {
       let _this = containers[c];
-      let metaBlock = this.getElements(this.selectors.metadata, _this);
-      let videoInfo = {'test': Math.floor(Math.random() * 10)}
+      let videoId = this.pryVideoId(_this);
 
-      this.addInfo(metaBlock, videoInfo);
-      this.addClass(_this, 'ytes-adorned');
+      videoIds.push(videoId);
+      this.addClass(_this, videoId);
     }
+
+    return videoIds;
   }
 };
 

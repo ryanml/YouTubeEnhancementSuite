@@ -11,5 +11,8 @@
       ],
       "js": ["ytes.js"]
     }
+  ],
+  "permissions": [
+    "https://www.googleapis.com/youtube/v3/videos/*"
   ]
 }
