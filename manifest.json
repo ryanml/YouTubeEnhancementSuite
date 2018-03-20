@@ -1,6 +1,5 @@
 {
   "manifest_version": 2,
-
   "name": "YouTube Enhancement Suite",
   "description": "Contains various enhancements for YouTube.com",
   "version": "1.0",
@@ -12,6 +11,9 @@
       "js": ["src/js/ytes.js"]
     }
   ],
+  "background": {
+    "scripts": ["src/js/events.js"]
+  },
   "permissions": [
     "https://www.googleapis.com/youtube/v3/videos/*"
   ]

@@ -44,18 +44,17 @@ let YTES = {
 
   selectors: {
     home: {
+      title: '#video-title',
       initial: '#contents ytd-grid-video-renderer:not(.received)'
     },
     results: {
+      title: '#video-title',
       initial: '#contents ytd-video-renderer:not(.received)'
     },
     video: {
+      title: '.yt-simple-endpoint:first-child',
       initial: '#items ytd-compact-video-renderer:not(.received)'
     }
-  },
-
-  language: {
-    placeholder: 'YTES Utilities Placeholder'
   },
 
   init: function () {
@@ -121,7 +120,7 @@ let YTES = {
   },
 
   pryVideoId: function (videoBlock) {
-    let videoTitle = this.get('#video-title', videoBlock);
+    let videoTitle = this.get(this.selectors[this.state.route].title, videoBlock);
     let videoHref = videoTitle.getAttribute('href');
     let idPart = videoHref.split('?v=')[1];
     idPart = idPart.indexOf('&t=') > -1 ? idPart.split('&t=')[0] : idPart;
@@ -183,19 +182,10 @@ let YTES = {
         if (xmlHr.status === 200) {
           let response = JSON.parse(xmlHr.responseText);
           self.resolveVideoInfo(response.items);
-        } else if (xmlHr.status === 403) {
-          if (this.debug) {
-            console.log(
-              `The YT API was reached successfully, but returned a 403.
-              Ensure that your API key is correct.`
-            );
-          }
-        } else {
-          if (this.debug) {
-            console.log(
-              `YT API response error, status code: ${xmlHr.status}`
-            );
-          }
+        } else if (this.debug) {
+          console.log(
+            `YT API response error, status code: ${xmlHr.status}`
+          );
         }
       }
       self.state.isProcessing = false;
@@ -223,6 +213,12 @@ let YTES = {
       let _this = containers[c];
       let videoId = this.pryVideoId(_this);
 
+      /**
+       * If the item is still waiting to receive data, skip
+       */
+      if (_this.className.indexOf('should-receive') > -1)
+        continue;
+
       videoIds.push(videoId);
       _this.dataset.videoid = videoId;
       this.addClass(_this, 'should-receive');
@@ -232,4 +228,15 @@ let YTES = {
   }
 };
 
+/**
+ * Init
+ */
 YTES.init();
+
+/**
+ * We should re-init upon route updates
+ */
+chrome.runtime.onMessage.addListener(function (m, s, r) {
+  if (m === 'route-updated')
+    YTES.init();
+});
