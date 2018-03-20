@@ -42,7 +42,7 @@ let YTES = {
 
   ytApi: 'https://www.googleapis.com/youtube/v3/videos',
 
-  selectors: {
+  $: {
     home: {
       title: '#video-title',
       initial: '#contents ytd-grid-video-renderer:not(.received)'
@@ -52,6 +52,7 @@ let YTES = {
       initial: '#contents ytd-video-renderer:not(.received)'
     },
     video: {
+      showmore: '.yt-next-continuation',
       title: '.yt-simple-endpoint:first-child',
       initial: '#items ytd-compact-video-renderer:not(.received)'
     }
@@ -67,10 +68,10 @@ let YTES = {
     this.state.route = route;
 
     this.prepareVideoIds();
-    this.scrollActions();
+    this.addScrollActions();
   },
 
-  scrollActions: function () {
+  addScrollActions: function () {
     let self = this;
     window.addEventListener('scroll', function (e) {
       let scrollPos = window.pageYOffset || document.documentElement.scrollTop;
@@ -120,7 +121,7 @@ let YTES = {
   },
 
   pryVideoId: function (videoBlock) {
-    let videoTitle = this.get(this.selectors[this.state.route].title, videoBlock);
+    let videoTitle = this.get(this.$[this.state.route].title, videoBlock);
     let videoHref = videoTitle.getAttribute('href');
     let idPart = videoHref.split('?v=')[1];
     idPart = idPart.indexOf('&t=') > -1 ? idPart.split('&t=')[0] : idPart;
@@ -136,13 +137,50 @@ let YTES = {
     return paramBuff;
   },
 
+  getApprovalRatios: function (stats) {
+    let likes = parseInt(stats.likes);
+    let dislikes = parseInt(stats.dislikes);
+    let total = (likes + dislikes);
+
+    /**
+     * Base cases
+     */
+    if (total === 0) {
+      return -1;
+    } else if (likes === 0) {
+      return [0, 100];
+    } else if (dislikes === 0) {
+      return [100, 0];
+    }
+
+    let likeRatio = Math.round((likes / total) * 100);
+    return [likeRatio, (100 - likeRatio)];
+  },
+
+  getApprovalMarkup: function (ratios) {
+    if (ratios === -1)
+      return `<div class='ytes-feedback-ratio ytes-no-feedback'></div>`;
+
+    let likesWidth = `${ratios[0]}%`;
+    let dislikesWidth = `${ratios[1]}%`;
+
+    return `<div class='ytes-feedback-ratio'>
+              <div style='width:${likesWidth}' class='ytes-likes'></div>
+              <div style='width:${dislikesWidth}' class='ytes-dislikes'></div>
+            </div>`;
+  },
+
   addVideoInfo: function (stats, item) {
     let metadata = this.get('#metadata', item);
+    let ratios = this.getApprovalRatios(stats);
+    let approvalMarkup = this.getApprovalMarkup(ratios);
     for (var stat in stats) {
       if (stats.hasOwnProperty(stat)) {
-        this.append(`${stat}: ${stats[stat]} `, metadata);
+        let separator = stat === 'comments' ? '' : ' | ';
+        this.append(`${stat}: ${stats[stat]}${separator}`, metadata);
       }
     }
+    this.append(approvalMarkup, metadata.parentElement);
     this.replaceClass(item, 'should-receive', 'received');
   },
 
@@ -207,7 +245,7 @@ let YTES = {
   prepareVideoIds: function () {
     let videoIds = [];
     this.state.isProcessing = true;
-    let containers = this.get(this.selectors[this.state.route].initial);
+    let containers = this.get(this.$[this.state.route].initial);
 
     for (let c = 0; c < containers.length; c++) {
       let _this = containers[c];

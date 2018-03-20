@@ -1,0 +1,25 @@
+/**
+ * Main styles for YTES
+ */
+
+.ytes-feedback-ratio {
+  height: 5px;
+  width: 100%;
+}
+
+.ytes-no-feedback {
+  background: #eeeef0;
+}
+
+.ytes-likes, .ytes-dislikes {
+  height: 5px;
+  display: inline-block;
+}
+
+.ytes-likes {
+  background: #3095e3;
+}
+
+.ytes-dislikes {
+  background: #eeeef0;
+}

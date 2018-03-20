@@ -8,7 +8,8 @@
       "matches": [
         "*://*.youtube.com/*"
       ],
-      "js": ["src/js/ytes.js"]
+      "js": ["src/js/ytes.js"],
+      "css": ["src/css/ytes.css"]
     }
   ],
   "background": {
